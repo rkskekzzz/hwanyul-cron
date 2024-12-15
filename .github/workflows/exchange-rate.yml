@@ -13,62 +13,69 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up Python environment
-        uses: actions/setup-python@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
         with:
-          python-version: "3.x"
+          node-version: "18"
 
-      - name: Install required Python packages
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests
+      - name: Install Dependencies
+        run: npm install axios
 
       - name: Get Exchange Rate and Send to Channel.io
         run: |
-          import requests
-          from datetime import datetime
+          const axios = require('axios');
 
-          # 환율 정보 가져오기
-          EXCHANGE_RATE_API_KEY = "${{ secrets.EXCHANGE_RATE_API_KEY }}"
-          exchange_url = f'https://v6.exchangerate-api.com/v6/{EXCHANGE_RATE_API_KEY}/latest/USD'
+          async function main() {
+            try {
+              // 환율 정보 가져오기
+              const EXCHANGE_RATE_API_KEY = "${{ secrets.EXCHANGE_RATE_API_KEY }}";
+              const exchange_url = `https://v6.exchangerate-api.com/v6/${EXCHANGE_RATE_API_KEY}/latest/USD`;
 
-          exchange_response = requests.get(exchange_url)
-          data = exchange_response.json()
-          rate = data['conversion_rates']['KRW']
-          last_updated = datetime.fromtimestamp(data['time_last_update_unix']).strftime('%Y-%m-%d %H:%M:%S')
-          rate_message = f"오늘의 원/달러 환율은 {rate}입니다."
+              const { data } = await axios.get(exchange_url);
+              const rate = data.conversion_rates.KRW;
+              const lastUpdated = new Date(data.time_last_update_unix * 1000).toLocaleString('ko-KR');
+              const rateMessage = `오늘의 원/달러 환율은 ${rate}입니다.`;
 
-          # Channel.io로 메시지 전송
-          channel_url = "https://api.channel.io/open/v5/groups/@${{ secrets.GROUP_NAME }}/messages"
+              // Channel.io로 메시지 전송
+              const channelUrl = "https://api.channel.io/open/v5/groups/@${{ secrets.GROUP_NAME }}/messages";
 
-          headers = {
-              'Content-Type': 'application/json',
-              'x-access-key': '${{ secrets.CHANNEL_ACCESS_KEY }}',
-              'x-access-secret': '${{ secrets.CHANNEL_ACCESS_SECRET }}'
-          }
+              const headers = {
+                'Content-Type': 'application/json',
+                'x-access-key': '${{ secrets.CHANNEL_ACCESS_KEY }}',
+                'x-access-secret': '${{ secrets.CHANNEL_ACCESS_SECRET }}'
+              };
 
-          payload = {
-              "blocks": [
+              const payload = {
+                blocks: [
                   {
-                      "type": "text",
-                      "value": "<b>원/달러 환율 정보</b>"
+                    type: "text",
+                    value: "<b>원/달러 환율 정보</b>"
                   },
                   {
-                      "type": "text",
-                      "value": rate_message
+                    type: "text",
+                    value: rateMessage
                   },
                   {
-                      "type": "text",
-                      "value": f"(마지막 업데이트된 시간: {last_updated})"
+                    type: "text",
+                    value: `(마지막 업데이트: ${lastUpdated})`
                   }
-              ]
+                ]
+              };
+
+              const response = await axios.post(
+                `${channelUrl}?botName=${{ secrets.BOT_NAME }}`,
+                payload,
+                { headers }
+              );
+
+              if (response.status !== 200) {
+                throw new Error(`Channel.io API 요청 실패: ${response.status}`);
+              }
+            } catch (error) {
+              console.error('Error:', error.message);
+              process.exit(1);
+            }
           }
 
-          channel_response = requests.post(
-              f"{channel_url}?botName=${{ secrets.BOT_NAME }}",
-              headers=headers,
-              json=payload
-          )
-
-          if channel_response.status_code != 200:
-              raise Exception(f"Channel.io API 요청 실패: {channel_response.status_code}")
+          main();
+        shell: node
