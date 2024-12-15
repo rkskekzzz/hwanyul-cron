@@ -15,7 +15,7 @@ jobs:
         run: |
           RESPONSE=$(curl -s "https://v6.exchangerate-api.com/v6/${{ secrets.EXCHANGE_RATE_API_KEY }}/latest/USD")
           RATE=$(echo $RESPONSE | jq -r '.conversion_rates.KRW')
-          LAST_UPDATED=$(echo $RESPONSE | jq -r '.time_last_update_unix | strftime("%Y-%m-%d %H:%M:%S")')
+          LAST_UPDATED=$(echo $RESPONSE | jq -r '.time_last_update_unix | tonumber | . + (9 * 3600) | strftime("%Y-%m-%d %H:%M:%S KST")')
           echo "rate=$RATE" >> $GITHUB_OUTPUT
           echo "last_updated=$LAST_UPDATED" >> $GITHUB_OUTPUT
 
@@ -37,7 +37,7 @@ jobs:
               },
               {
                 "type": "text",
-                "value": "(마지막 업데이트: ${{ steps.get_rate.outputs.last_updated }})"
+                "value": "(마지막 업데이트(한국시간): ${{ steps.get_rate.outputs.last_updated }})"
               }
             ]
           }'
