@@ -2,7 +2,7 @@ name: Daily Exchange Rate
 
 on:
   schedule:
-    - cron: "10 2 * * 1-5"
+    - cron: "10 2 * * 1-5" # UTC 02:10 = KST 11:10
   workflow_dispatch:
 
 jobs:
@@ -14,9 +14,11 @@ jobs:
         id: get_rate
         run: |
           RESPONSE=$(curl -s "https://v6.exchangerate-api.com/v6/${{ secrets.EXCHANGE_RATE_API_KEY }}/latest/USD")
-          RATE=$(echo $RESPONSE | jq -r '.conversion_rates.KRW')
+          KRW_RATE=$(echo $RESPONSE | jq -r '.conversion_rates.KRW')
+          JPY_RATE=$(echo $RESPONSE | jq -r '.conversion_rates.JPY')
           LAST_UPDATED=$(echo $RESPONSE | jq -r '.time_last_update_unix | tonumber | . + (9 * 3600) | strftime("%Y-%m-%d %H:%M:%S KST")')
-          echo "rate=$RATE" >> $GITHUB_OUTPUT
+          echo "krw_rate=$KRW_RATE" >> $GITHUB_OUTPUT
+          echo "jpy_rate=$JPY_RATE" >> $GITHUB_OUTPUT
           echo "last_updated=$LAST_UPDATED" >> $GITHUB_OUTPUT
 
       - name: Send to Channel.io
@@ -29,15 +31,19 @@ jobs:
             "blocks": [
               {
                 "type": "text",
-                "value": "<b>원/달러 환율 정보</b>"
+                "value": "<b>환율 정보</b>"
               },
               {
                 "type": "text",
-                "value": "오늘의 원/달러 환율은 ${{ steps.get_rate.outputs.rate }}입니다."
+                "value": "• USD/KRW: ${{ steps.get_rate.outputs.krw_rate }}"
               },
               {
                 "type": "text",
-                "value": "(마지막 업데이트(한국시간): ${{ steps.get_rate.outputs.last_updated }})"
+                "value": "• USD/JPY: ${{ steps.get_rate.outputs.jpy_rate }}"
+              },
+              {
+                "type": "text",
+                "value": "(마지막 업데이트: ${{ steps.get_rate.outputs.last_updated }})"
               }
             ]
           }'
