@@ -13,10 +13,11 @@ jobs:
       - name: Get Exchange Rate
         id: get_rate
         run: |
-          RESPONSE=$(curl -s "https://v6.exchangerate-api.com/v6/${{ secrets.EXCHANGE_RATE_API_KEY }}/latest/USD")
-          KRW_RATE=$(echo $RESPONSE | jq -r '.conversion_rates.KRW')
-          JPY_RATE=$(echo $RESPONSE | jq -r '.conversion_rates.JPY')
-          LAST_UPDATED=$(echo $RESPONSE | jq -r '.time_last_update_unix | tonumber | . + (9 * 3600) | strftime("%Y-%m-%d %H:%M:%S KST")')
+          USD_RESPONSE=$(curl -s "https://v6.exchangerate-api.com/v6/${{ secrets.EXCHANGE_RATE_API_KEY }}/latest/USD")
+          KRW_RESPONSE=$(curl -s "https://v6.exchangerate-api.com/v6/${{ secrets.EXCHANGE_RATE_API_KEY }}/latest/KRW")
+          KRW_RATE=$(echo $USD_RESPONSE | jq -r '.conversion_rates.KRW')
+          JPY_RATE=$(echo $KRW_RESPONSE | jq -r '.conversion_rates.JPY')
+          LAST_UPDATED=$(echo $USD_RESPONSE | jq -r '.time_last_update_unix | tonumber | . + (9 * 3600) | strftime("%Y-%m-%d %H:%M:%S KST")')
           echo "krw_rate=$KRW_RATE" >> $GITHUB_OUTPUT
           echo "jpy_rate=$JPY_RATE" >> $GITHUB_OUTPUT
           echo "last_updated=$LAST_UPDATED" >> $GITHUB_OUTPUT
@@ -39,7 +40,7 @@ jobs:
               },
               {
                 "type": "text",
-                "value": "• USD/JPY: ${{ steps.get_rate.outputs.jpy_rate }}"
+                "value": "• KRW/JPY: ${{ steps.get_rate.outputs.jpy_rate }}"
               },
               {
                 "type": "text",
