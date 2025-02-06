@@ -1,8 +1,6 @@
 name: Daily Exchange Rate V2
 
 on:
-  schedule:
-    - cron: "10 2 * * 1-5" # UTC 02:10 = KST 11:10
   workflow_dispatch:
 
 jobs:
