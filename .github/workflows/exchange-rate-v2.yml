@@ -1,0 +1,50 @@
+name: Daily Exchange Rate
+
+on:
+  schedule:
+    - cron: "10 2 * * 1-5" # UTC 02:10 = KST 11:10
+  workflow_dispatch:
+
+jobs:
+  get_exchange_rate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get Exchange Rate
+        id: get_rate
+        run: |
+          TODAY=$(date +%Y%m%d)
+          RESPONSE=$(curl -s "https://www.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey=${{ secrets.EXCHANGE_RATE_API_KEY_V2 }}&searchdate=$TODAY&data=AP01")
+          KRW_RATE=$(echo $RESPONSE | jq -r '.[] | select(.cur_unit == "USD") | .deal_bas_r | gsub(","; "") | tonumber')
+          JPY_100_RATE=$(echo $RESPONSE | jq -r '.[] | select(.cur_unit == "JPY(100)") | .deal_bas_r | gsub(","; "") | tonumber')
+          LAST_UPDATED=$(date "+%Y-%m-%d %H:%M:%S KST")
+          echo "krw_rate=$KRW_RATE" >> $GITHUB_OUTPUT
+          echo "jpy_100_rate=$JPY_100_RATE" >> $GITHUB_OUTPUT
+          echo "last_updated=$LAST_UPDATED" >> $GITHUB_OUTPUT
+
+      - name: Send to Channel.io
+        run: |
+          curl -X POST "https://api.channel.io/open/v5/groups/@${{ secrets.GROUP_NAME_V2 }}/messages?botName=${{ secrets.BOT_NAME }}" \
+          -H "Content-Type: application/json" \
+          -H "x-access-key: ${{ secrets.CHANNEL_ACCESS_KEY }}" \
+          -H "x-access-secret: ${{ secrets.CHANNEL_ACCESS_SECRET }}" \
+          -d '{
+            "blocks": [
+              {
+                "type": "text",
+                "value": "<b>환율 정보</b>"
+              },
+              {
+                "type": "text",
+                "value": "• USD/KRW: ${{ steps.get_rate.outputs.krw_rate }}"
+              },
+              {
+                "type": "text",
+                "value": "• KRW/JPY: ${{ steps.get_rate.outputs.jpy_100_rate }}"
+              },
+              {
+                "type": "text",
+                "value": "(마지막 업데이트: ${{ steps.get_rate.outputs.last_updated }})"
+              }
+            ]
+          }'
