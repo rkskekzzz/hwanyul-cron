@@ -1,4 +1,4 @@
-name: Daily Exchange Rate
+name: Daily Exchange Rate V2
 
 on:
   schedule:
